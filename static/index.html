@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual KB</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #08080f;
+  color: #fff;
+  font-family: 'Syne', sans-serif;
+  overflow: hidden;
+}
+
+/* Orbs */
+.orbs {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+}
+.orb1 { width: 500px; height: 500px; background: radial-gradient(circle, rgba(120,60,255,0.35) 0%, transparent 70%); top: -150px; left: -100px; }
+.orb2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(0,200,180,0.25) 0%, transparent 70%); top: 50px; right: -80px; }
+.orb3 { width: 350px; height: 350px; background: radial-gradient(circle, rgba(255,80,140,0.2) 0%, transparent 70%); bottom: -80px; left: 35%; }
+.orb4 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(60,140,255,0.2) 0%, transparent 70%); bottom: 40px; right: 80px; }
+
+/* Layout */
+.app {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(255,255,255,0.1);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.logo-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #a78bfa, #38bdf8, #34d399);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(167,139,250,0.5);
+}
+
+.logo-mark svg { width: 14px; height: 14px; }
+.logo-name { font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: 'Syne', sans-serif;
+}
+.nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.nav-item.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border-color: rgba(255,255,255,0.18);
+}
+
+.nav-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.nav-item.active .nav-dot {
+  background: linear-gradient(135deg, #a78bfa, #38bdf8);
+  box-shadow: 0 0 8px rgba(167,139,250,0.9);
+}
+
+.sidebar-divider {
+  margin: 18px 0 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 14px;
+}
+
+.sidebar-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+.stat-key { font-size: 12px; color: rgba(255,255,255,0.65); }
+.stat-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+}
+.stat-val.ready { color: #34d399; }
+.stat-val.loading { color: #fbbf24; }
+
+.reindex-btn {
+  margin-top: auto;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(56,189,248,0.2));
+  border: 1px solid rgba(167,139,250,0.4);
+  border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+}
+.reindex-btn:hover {
+  background: linear-gradient(135deg, rgba(167,139,250,0.35), rgba(56,189,248,0.35));
+  transform: translateY(-1px);
+}
+.reindex-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Main */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(0,0,0,0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.tab {
+  padding: 15px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.12s;
+  font-family: 'Syne', sans-serif;
+  letter-spacing: 0.01em;
+}
+.tab:hover { color: rgba(255,255,255,0.9); }
+.tab.active { color: #fff; border-bottom-color: #a78bfa; }
+
+/* Panels */
+.panel { display: none; flex: 1; padding: 24px; overflow-y: auto; flex-direction: column; gap: 20px; }
+.panel.active { display: flex; }
+.panel::-webkit-scrollbar { width: 3px; }
+.panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* Search */
+.search-wrap { position: relative; }
+
+.search-input {
+  width: 100%;
+  padding: 14px 52px 14px 18px;
+  font-size: 14px;
+  font-family: 'Syne', sans-serif;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px;
+  color: #fff;
+  outline: none;
+  transition: all 0.15s;
+}
+.search-input:focus {
+  border-color: rgba(167,139,250,0.6);
+  background: rgba(255,255,255,0.1);
+  box-shadow: 0 0 0 3px rgba(167,139,250,0.1);
+}
+.search-input::placeholder { color: rgba(255,255,255,0.3); }
+
+.search-btn {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, #a78bfa, #38bdf8);
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  box-shadow: 0 0 12px rgba(167,139,250,0.5);
+}
+.search-btn:hover { transform: translateY(-50%) scale(1.06); box-shadow: 0 0 18px rgba(167,139,250,0.7); }
+
+/* Results */
+.results-header {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.result-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.result-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.result-card:nth-child(1):hover { border-color: rgba(167,139,250,0.5); }
+.result-card:nth-child(2):hover { border-color: rgba(56,189,248,0.5); }
+.result-card:nth-child(3):hover { border-color: rgba(52,211,153,0.5); }
+
+.result-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+  background: rgba(255,255,255,0.04);
+}
+
+.result-img-placeholder {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.2);
+  font-size: 28px;
+}
+
+.result-meta { padding: 12px 13px; }
+.result-filename {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.score-bar {
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.score-fill-1 { background: linear-gradient(90deg, #a78bfa, #818cf8); }
+.score-fill-2 { background: linear-gradient(90deg, #38bdf8, #818cf8); }
+.score-fill-3 { background: linear-gradient(90deg, #34d399, #38bdf8); }
+
+.score-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
+}
+.score-text span { color: #fff; font-weight: 500; }
+
+/* Diagnosis */
+.diagnosis-box {
+  padding: 16px 18px;
+  background: rgba(167,139,250,0.08);
+  border: 1px solid rgba(167,139,250,0.22);
+  border-radius: 14px;
+}
+.diagnosis-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.diagnosis-icon {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #a78bfa, #38bdf8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.diagnosis-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: rgba(200,180,255,0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.diagnosis-text {
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.7;
+}
+.diagnosis-text strong { color: #fff; font-weight: 700; }
+
+/* Image upload */
+.upload-zone {
+  border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 14px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(255,255,255,0.03);
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: rgba(167,139,250,0.5);
+  background: rgba(167,139,250,0.06);
+}
+.upload-zone input { display: none; }
+.upload-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
+.upload-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.upload-sub { font-size: 12px; color: rgba(255,255,255,0.45); }
+
+.preview-wrap {
+  display: none;
+  gap: 20px;
+  align-items: flex-start;
+}
+.preview-img {
+  width: 160px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  flex-shrink: 0;
+}
+.preview-info { flex: 1; }
+.preview-name { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.search-image-btn {
+  padding: 9px 20px;
+  background: linear-gradient(135deg, #a78bfa, #38bdf8);
+  border: none;
+  border-radius: 9px;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.12s;
+  box-shadow: 0 0 12px rgba(167,139,250,0.4);
+}
+.search-image-btn:hover { transform: translateY(-1px); box-shadow: 0 0 18px rgba(167,139,250,0.6); }
+
+/* Add to library */
+.add-zone {
+  border: 1px dashed rgba(255,255,255,0.2);
+  border-radius: 14px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(255,255,255,0.03);
+}
+.add-zone:hover { border-color: rgba(52,211,153,0.5); background: rgba(52,211,153,0.04); }
+.add-zone input { display: none; }
+
+/* Empty / loading states */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: rgba(255,255,255,0.25);
+  text-align: center;
+  gap: 10px;
+  min-height: 200px;
+}
+.empty-icon {
+  width: 40px; height: 40px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.empty-text { font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.7; }
+
+.loading-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.loading-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: rgba(167,139,250,0.7);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+.loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.success-msg {
+  padding: 12px 16px;
+  background: rgba(52,211,153,0.1);
+  border: 1px solid rgba(52,211,153,0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #34d399;
+  display: none;
+}
+
+.error-msg {
+  padding: 12px 16px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px;
+  font-size: 13px;
+  color: #f87171;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<div class="orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="orb orb4"></div>
+</div>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 14 14" fill="none">
+          <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" fill="white" opacity="0.9"/>
+          <circle cx="7" cy="7" r="2.2" fill="rgba(0,0,0,0.5)"/>
+        </svg>
+      </div>
+      <span class="logo-name">Visual KB</span>
+    </div>
+
+    <button class="nav-item active" onclick="switchTab('text', this)">
+      <span class="nav-dot"></span> Text Search
+    </button>
+    <button class="nav-item" onclick="switchTab('image', this)">
+      <span class="nav-dot"></span> Image Match
+    </button>
+    <button class="nav-item" onclick="switchTab('add', this)">
+      <span class="nav-dot"></span> Add to Library
+    </button>
+
+    <div class="sidebar-divider">
+      <div class="sidebar-label">Library</div>
+      <div class="stat-row">
+        <span class="stat-key">Photos</span>
+        <span class="stat-val" id="stat-photos">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Dimensions</span>
+        <span class="stat-val" id="stat-dims">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Model</span>
+        <span class="stat-val" id="stat-model">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-key">Status</span>
+        <span class="stat-val" id="stat-status">—</span>
+      </div>
+    </div>
+
+    <button class="reindex-btn" id="reindex-btn" onclick="reindex()">Re-index library</button>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" id="tab-text" onclick="switchTab('text', null)">Text Search</button>
+      <button class="tab" id="tab-image" onclick="switchTab('image', null)">Image Match</button>
+      <button class="tab" id="tab-add" onclick="switchTab('add', null)">Add to Library</button>
+    </div>
+
+    <!-- Text Search Panel -->
+    <div class="panel active" id="panel-text">
+      <div class="search-wrap">
+        <input class="search-input" id="text-query" placeholder="e.g. ice buildup on refrigerant line" />
+        <button class="search-btn" onclick="textSearch()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="white" stroke-width="1.5"/>
+            <path d="M10 10L13 13" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div id="text-results-header" class="results-header" style="display:none"></div>
+      <div id="text-results-grid" class="results-grid" style="display:none"></div>
+      <div id="text-diagnosis" class="diagnosis-box" style="display:none">
+        <div class="diagnosis-header">
+          <div class="diagnosis-icon">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M5 1v8M1 5h8" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="diagnosis-label">AI Diagnosis — similar past cases</div>
+        </div>
+        <div class="diagnosis-text" id="text-diagnosis-text"></div>
+      </div>
+      <div id="text-error" class="error-msg"></div>
+
+      <div class="empty-state" id="text-empty">
+        <div class="empty-icon">◈</div>
+        <div class="empty-text">Type a query above to search<br>your visual knowledge base</div>
+      </div>
+
+      <div class="empty-state" id="text-loading" style="display:none">
+        <div class="loading-dots">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+        <div class="empty-text" style="color:rgba(167,139,250,0.7)">Searching visual knowledge base...</div>
+      </div>
+    </div>
+
+    <!-- Image Match Panel -->
+    <div class="panel" id="panel-image">
+      <label class="upload-zone" id="image-upload-zone">
+        <input type="file" id="image-file-input" accept="image/*" onchange="handleImageUpload(this)">
+        <div class="upload-icon">⬆</div>
+        <div class="upload-title">Drop a photo or click to upload</div>
+        <div class="upload-sub">Find visually similar images in your library</div>
+      </label>
+
+      <div class="preview-wrap" id="image-preview-wrap">
+        <img class="preview-img" id="image-preview" src="" alt="preview"/>
+        <div class="preview-info">
+          <div class="preview-name" id="image-preview-name"></div>
+          <button class="search-image-btn" onclick="imageSearch()">Find Similar Photos</button>
+        </div>
+      </div>
+
+      <div id="image-results-header" class="results-header" style="display:none"></div>
+      <div id="image-results-grid" class="results-grid" style="display:none"></div>
+      <div id="image-diagnosis" class="diagnosis-box" style="display:none">
+        <div class="diagnosis-header">
+          <div class="diagnosis-icon">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M5 1v8M1 5h8" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="diagnosis-label">AI Diagnosis — similar past cases</div>
+        </div>
+        <div class="diagnosis-text" id="image-diagnosis-text"></div>
+      </div>
+      <div id="image-error" class="error-msg"></div>
+
+      <div class="empty-state" id="image-loading" style="display:none">
+        <div class="loading-dots">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+        <div class="empty-text" style="color:rgba(167,139,250,0.7)">Analyzing image...</div>
+      </div>
+    </div>
+
+    <!-- Add to Library Panel -->
+    <div class="panel" id="panel-add">
+      <label class="add-zone" id="add-upload-zone">
+        <input type="file" id="add-file-input" accept="image/*" multiple onchange="handleAddUpload(this)">
+        <div class="upload-icon">+</div>
+        <div class="upload-title">Add photos to your library</div>
+        <div class="upload-sub">Select one or more images to index</div>
+      </label>
+      <div id="add-success" class="success-msg"></div>
+      <div id="add-error" class="error-msg"></div>
+      <div class="empty-state" id="add-loading" style="display:none">
+        <div class="loading-dots">
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+          <div class="loading-dot"></div>
+        </div>
+        <div class="empty-text" style="color:rgba(52,211,153,0.7)">Indexing photos...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let uploadedFile = null;
+
+// Tab switching
+function switchTab(tab, navEl) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+
+  if (navEl) navEl.classList.add('active');
+  else {
+    const navItems = document.querySelectorAll('.nav-item');
+    const tabMap = { text: 0, image: 1, add: 2 };
+    navItems[tabMap[tab]].classList.add('active');
+  }
+
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+}
+
+// Load status on startup
+async function loadStatus() {
+  try {
+    const res = await fetch(`${API}/status`);
+    const data = await res.json();
+    document.getElementById('stat-photos').textContent = data.photos_indexed ?? '—';
+    document.getElementById('stat-dims').textContent = data.dimensions ?? '—';
+    document.getElementById('stat-model').textContent = data.model ?? '—';
+    const statusEl = document.getElementById('stat-status');
+    statusEl.textContent = data.status ?? '—';
+    statusEl.className = 'stat-val ' + (data.status === 'ready' ? 'ready' : 'loading');
+  } catch {
+    document.getElementById('stat-status').textContent = 'offline';
+    document.getElementById('stat-status').style.color = '#f87171';
+  }
+}
+
+// Re-index
+async function reindex() {
+  const btn = document.getElementById('reindex-btn');
+  btn.disabled = true;
+  btn.textContent = 'Indexing...';
+  try {
+    const res = await fetch(`${API}/index`, { method: 'POST' });
+    const data = await res.json();
+    btn.textContent = `Indexed ${data.count} photos`;
+    setTimeout(() => { btn.textContent = 'Re-index library'; btn.disabled = false; }, 2000);
+    loadStatus();
+  } catch {
+    btn.textContent = 'Failed — retry';
+    btn.disabled = false;
+  }
+}
+
+// Render results
+function renderResults(results, diagnosis, prefix) {
+  const gridEl = document.getElementById(`${prefix}-results-grid`);
+  const headerEl = document.getElementById(`${prefix}-results-header`);
+  const diagEl = document.getElementById(`${prefix}-diagnosis`);
+  const diagText = document.getElementById(`${prefix}-diagnosis-text`);
+
+  headerEl.textContent = `Top matches — ${results.length} result${results.length !== 1 ? 's' : ''}`;
+  headerEl.style.display = 'block';
+
+  const fills = ['score-fill-1', 'score-fill-2', 'score-fill-3'];
+  gridEl.innerHTML = results.map((r, i) => `
+    <div class="result-card">
+      <img class="result-img" src="${API}/photo/${r.filename}" alt="${r.filename}"
+           onerror="this.parentNode.innerHTML='<div class=result-img-placeholder>◈</div>'">
+      <div class="result-meta">
+        <div class="result-filename">${r.filename}</div>
+        <div class="score-bar"><div class="score-fill ${fills[i % fills.length]}" style="width:${Math.round(r.score * 100)}%"></div></div>
+        <div class="score-text"><span>${Math.round(r.score * 100)}%</span> match</div>
+      </div>
+    </div>
+  `).join('');
+  gridEl.style.display = 'grid';
+
+  if (diagnosis) {
+    diagText.innerHTML = diagnosis;
+    diagEl.style.display = 'block';
+  }
+}
+
+// Text search
+async function textSearch() {
+  const query = document.getElementById('text-query').value.trim();
+  if (!query) return;
+
+  document.getElementById('text-empty').style.display = 'none';
+  document.getElementById('text-results-grid').style.display = 'none';
+  document.getElementById('text-results-header').style.display = 'none';
+  document.getElementById('text-diagnosis').style.display = 'none';
+  document.getElementById('text-error').style.display = 'none';
+  document.getElementById('text-loading').style.display = 'flex';
+
+  try {
+    const res = await fetch(`${API}/search/text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, n_results: 3 })
+    });
+    const data = await res.json();
+    document.getElementById('text-loading').style.display = 'none';
+    renderResults(data.results, data.diagnosis, 'text');
+  } catch (e) {
+    document.getElementById('text-loading').style.display = 'none';
+    const err = document.getElementById('text-error');
+    err.textContent = 'Could not reach API at localhost:8000 — make sure the server is running.';
+    err.style.display = 'block';
+  }
+}
+
+document.getElementById('text-query').addEventListener('keydown', e => {
+  if (e.key === 'Enter') textSearch();
+});
+
+// Image upload
+function handleImageUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  uploadedFile = file;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('image-preview').src = e.target.result;
+    document.getElementById('image-preview-name').textContent = file.name;
+    document.getElementById('image-upload-zone').style.display = 'none';
+    document.getElementById('image-preview-wrap').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function imageSearch() {
+  if (!uploadedFile) return;
+
+  document.getElementById('image-results-grid').style.display = 'none';
+  document.getElementById('image-results-header').style.display = 'none';
+  document.getElementById('image-diagnosis').style.display = 'none';
+  document.getElementById('image-error').style.display = 'none';
+  document.getElementById('image-loading').style.display = 'flex';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', uploadedFile);
+
+    const res = await fetch(`${API}/search/image`, { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('image-loading').style.display = 'none';
+    renderResults(data.results, data.diagnosis, 'image');
+  } catch {
+    document.getElementById('image-loading').style.display = 'none';
+    const err = document.getElementById('image-error');
+    err.textContent = 'Could not reach API at localhost:8000 — make sure the server is running.';
+    err.style.display = 'block';
+  }
+}
+
+// Add to library
+async function handleAddUpload(input) {
+  const files = input.files;
+  if (!files.length) return;
+
+  document.getElementById('add-success').style.display = 'none';
+  document.getElementById('add-error').style.display = 'none';
+  document.getElementById('add-loading').style.display = 'flex';
+
+  try {
+    const formData = new FormData();
+    for (const file of files) formData.append('files', file);
+
+    const res = await fetch(`${API}/add`, { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('add-loading').style.display = 'none';
+
+    const success = document.getElementById('add-success');
+    success.textContent = `Successfully added ${data.count} photo${data.count !== 1 ? 's' : ''} to the library.`;
+    success.style.display = 'block';
+    loadStatus();
+  } catch {
+    document.getElementById('add-loading').style.display = 'none';
+    const err = document.getElementById('add-error');
+    err.textContent = 'Upload failed — make sure the server is running.';
+    err.style.display = 'block';
+  }
+}
+
+// Drag and drop
+['image-upload-zone', 'add-zone'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('drag-over');
+    const input = el.querySelector('input');
+    if (input && e.dataTransfer.files.length) {
+      Object.defineProperty(input, 'files', { value: e.dataTransfer.files });
+      input.dispatchEvent(new Event('change'));
+    }
+  });
+});
+
+// Init
+loadStatus();
+</script>
+</body>
+</html>
