@@ -39,3 +39,4 @@ user_uploads/
 
 # Jupyter
 .ipynb_checkpoints/
+*.code-workspace
